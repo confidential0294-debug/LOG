@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Definitive MCP Server for Jupyter Notebook Controller
+Final Verified MCP Server for Jupyter Notebook Controller
 Exposes tools via SSE transport for ChatGPT Remote MCP.
 """
 
@@ -83,6 +83,7 @@ async def home(request):
         media_type="text/plain"
     )
 
+# Inject root route
 app.routes.append(Route("/", home))
 
 if __name__ == "__main__":
