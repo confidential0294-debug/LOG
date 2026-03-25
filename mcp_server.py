@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Final Verified MCP Server for Jupyter Notebook Controller
+Definitive MCP Server for Jupyter Notebook Controller
 Exposes tools via SSE transport for ChatGPT Remote MCP.
 """
 
