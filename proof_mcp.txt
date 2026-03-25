@@ -1,0 +1,11 @@
+INFO:     Started server process [11643]
+INFO:     Waiting for application startup.
+StreamableHTTP session manager started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53948 - "POST /mcp HTTP/1.1" 200 OK
+Terminating session: None
+Testing MCP initialization (Streamable HTTP) at http://localhost:8000/mcp...
+Initialize POST status: 200
+Initialize SUCCESSFUL
+Verified!

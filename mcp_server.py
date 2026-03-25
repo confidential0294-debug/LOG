@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Minimal MCP Server for ChatGPT - Jupyter Notebook Controller
-Exposes tools via SSE (Server-Sent Events) for ChatGPT remote MCP integration
+MCP Server for Jupyter Notebook Controller
+Exposes tools via Streamable HTTP for robust remote MCP integration
 """
 
 import os
 import json
 import subprocess
 from pathlib import Path
-from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
+from starlette.applications import Starlette
+from starlette.routing import Mount
 
 # Configuration
 WORKSPACE_ROOT = Path("/workspaces/LOG")
 PORT = int(os.getenv("PORT", "8000"))
-RENDER_SERVICE_NAME = os.getenv("RENDER_SERVICE_NAME")  # e.g. your-service-name
 
-# Initialize FastMCP Server
-mcp = FastMCP("jupyter-notebook-controller")
+# Initialize FastMCP Server with stateless HTTP support (standard for Streamable HTTP)
+mcp = FastMCP("jupyter-notebook-controller", stateless_http=True, json_response=True)
 
 # ============================================================================
 # Tool Definitions and Handlers
@@ -32,12 +32,15 @@ async def list_notebooks(path: str = "") -> str:
     """
     search_path = WORKSPACE_ROOT / path if path else WORKSPACE_ROOT
 
-    notebooks = sorted(search_path.glob("**/*.ipynb"))
-    notebook_list = [str(nb.relative_to(WORKSPACE_ROOT)) for nb in notebooks]
+    try:
+        notebooks = sorted(search_path.glob("**/*.ipynb"))
+        notebook_list = [str(nb.relative_to(WORKSPACE_ROOT)) for nb in notebooks]
 
-    text = f"Found {len(notebook_list)} notebooks:\n" +            "\n".join(f"  - {nb}" for nb in notebook_list) if notebook_list else "No notebooks found"
+        text = f"Found {len(notebook_list)} notebooks:\n" +                "\n".join(f"  - {nb}" for nb in notebook_list) if notebook_list else "No notebooks found"
 
-    return text
+        return text
+    except Exception as e:
+        return f"Error listing notebooks: {e}"
 
 @mcp.tool()
 async def read_notebook(notebook_path: str) -> str:
@@ -50,7 +53,7 @@ async def read_notebook(notebook_path: str) -> str:
 
     if not nb_path.exists():
         return f"Error: Notebook not found at {nb_path}"
-    
+
     try:
         with open(nb_path, 'r') as f:
             notebook = json.load(f)
@@ -81,7 +84,7 @@ async def run_shell_command(command: str, cwd: str = None) -> str:
         cwd: Working directory (default: workspace root)
     """
     exec_cwd = cwd if cwd else str(WORKSPACE_ROOT)
-    
+
     try:
         result = subprocess.run(
             command,
@@ -102,51 +105,14 @@ async def run_shell_command(command: str, cwd: str = None) -> str:
     except Exception as e:
         return f"Error executing command: {e}"
 
-@mcp.tool()
-async def get_mcp_url() -> str:
-    """Get the public MCP server URL for ChatGPT configuration."""
-    # Return the best known URL for this environment.
-    if RENDER_SERVICE_NAME:
-        url = f"https://{RENDER_SERVICE_NAME}.onrender.com/sse"
-    else:
-        codespace = os.getenv("CODESPACE_NAME")
-        if codespace:
-            url = f"https://{codespace}-8000.app.github.dev/sse"
-        else:
-            url = f"http://localhost:{PORT}/sse"
-
-    text = f"MCP Server URL:\n{url}\n\nFor ChatGPT, configure it as:\n- Type: HTTP\n- URL: {url}"
-    return text
-
 # ============================================================================
-# FastAPI App setup
+# ASGI App for Render
 # ============================================================================
 
-app = FastAPI(title="Jupyter Notebook MCP Server")
-
-@app.get("/health")
-async def health():
-    """Health check endpoint"""
-    return {"status": "ok", "service": "jupyter-notebook-mcp"}
-
-# Mount FastMCP SSE app
-app.mount("/", mcp.sse_app())
+# Use the built-in streamable_http_app() directly
+# Note: Streamable HTTP in FastMCP handles sessions/requests at /mcp by default
+app = mcp.streamable_http_app()
 
 if __name__ == "__main__":
     import uvicorn
-    host = "0.0.0.0"
-    port = PORT
-
-    if RENDER_SERVICE_NAME:
-        public_url = f"https://{RENDER_SERVICE_NAME}.onrender.com/sse"
-    else:
-        codespace = os.getenv("CODESPACE_NAME")
-        if codespace:
-            public_url = f"https://{codespace}-{port}.app.github.dev/sse"
-        else:
-            public_url = f"http://localhost:{port}/sse"
-
-    print(f"Starting Jupyter Notebook MCP Server on http://{host}:{port}")
-    print(f"SSE endpoint: http://{host}:{port}/sse")
-    print(f"Public URL: {public_url}")
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="info")
