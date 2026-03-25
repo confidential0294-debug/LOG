@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 MCP Server for Jupyter Notebook Controller
-Exposes tools via Streamable HTTP for robust remote MCP integration
+Exposes tools via Streamable HTTP for robust remote MCP integration.
+This implementation is optimized for remote proxies like ChatGPT.
 """
 
 import os
@@ -9,14 +10,14 @@ import json
 import subprocess
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
-from starlette.applications import Starlette
-from starlette.routing import Mount
 
 # Configuration
 WORKSPACE_ROOT = Path("/workspaces/LOG")
 PORT = int(os.getenv("PORT", "8000"))
 
-# Initialize FastMCP Server with stateless HTTP support (standard for Streamable HTTP)
+# Initialize FastMCP Server with stateless HTTP support.
+# Stateless HTTP is recommended for production/remote MCP servers as it is
+# naturally horizontally scalable and avoids long-lived SSE connection fragility.
 mcp = FastMCP("jupyter-notebook-controller", stateless_http=True, json_response=True)
 
 # ============================================================================
@@ -106,13 +107,15 @@ async def run_shell_command(command: str, cwd: str = None) -> str:
         return f"Error executing command: {e}"
 
 # ============================================================================
-# ASGI App for Render
+# ASGI App Factory
 # ============================================================================
 
-# Use the built-in streamable_http_app() directly
-# Note: Streamable HTTP in FastMCP handles sessions/requests at /mcp by default
+# When deploying to Render/Vercel/etc., we need an ASGI app object.
+# FastMCP.streamable_http_app() returns a Starlette app that implements
+# the MCP Streamable HTTP protocol at the "/mcp" path by default.
 app = mcp.streamable_http_app()
 
 if __name__ == "__main__":
     import uvicorn
+    # Locally we run the ASGI app
     uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="info")
