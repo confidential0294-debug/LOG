@@ -1,0 +1,8 @@
+INFO:     Started server process [16890]
+INFO:     Waiting for application startup.
+StreamableHTTP session manager started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:10000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54816 - "GET /health HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54816 - "POST /mcp HTTP/1.1" 200 OK
+Terminating session: None
